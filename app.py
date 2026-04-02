@@ -62,12 +62,10 @@ with col3:
 with col4:
     st.metric(f"选定波段 {band_start}-{band_end}μm 能量占比", f"{custom_band_frac * 100:.2f} %")
 
-st.caption("定律依据：维恩位移定律(col1) | 斯忒藩-玻尔兹曼定律(col2) | 普朗克定律全谱分布(col3) | 普朗克公式波段积分(col4)")
-
 # --- 第二部分：动态光谱图 ---
 st.subheader("📊 辐射光谱可视化 (普朗克曲线与波段积分)")
 
-# 将波长范围上限限制为 40 微米
+# 数据计算范围严格限制在 0.1 到 40 微米
 lams = np.logspace(-1, np.log10(40), 800)
 eb_vals = planck_law(lams, T_k)
 
@@ -77,7 +75,6 @@ if T_k > 0:
     fig.add_trace(go.Scatter(x=lams, y=eb_vals, name="普朗克分布", line=dict(color='firebrick', width=3)))
     
     # 高亮用户选中的波段面积 (阴影填充)
-    # 确保填充区域不超过 40 微米
     fill_end = min(band_end, 40.0)
     if band_start < 40.0:
         lams_band = np.linspace(band_start, fill_end, 150)
@@ -89,7 +86,7 @@ if T_k > 0:
             name=f"波段 {band_start}-{fill_end}μm"
         ))
 
-    # 峰值标注 (只有当峰值在 40 微米以内时才标注，避免图表自动拉伸)
+    # 峰值标注 (只有当峰值在 40 微米以内时才标注)
     if lam_max <= 40.0:
         fig.add_trace(go.Scatter(x=[lam_max], y=[planck_law(lam_max, T_k)], 
                                  mode='markers+text', name="峰值点",
@@ -100,8 +97,15 @@ if T_k > 0:
 if target_lam <= 40.0:
     fig.add_vline(x=target_lam, line_dash="dash", line_color="green", annotation_text=f"点λ={target_lam:.1f}")
 
-# 强制锁定 X 轴的显示范围在 0.1 到 40 微米
-fig.update_xaxes(type="log", title="波长 λ (μm)", range=[-1, np.log10(40)])
+# 【关键修改】：强制锁定 X 轴视觉范围，并自定义刻度显示 40
+fig.update_xaxes(
+    type="log", 
+    title="波长 λ (μm)", 
+    range=[-1, np.log10(40)], # Plotly 对数坐标下的范围是 10^-1 到 10^log10(40)
+    tickvals=[0.1, 1, 10, 40], # 明确告诉图表要显示哪些刻度字样
+    ticktext=['0.1', '1', '10', '40'] 
+)
+
 fig.update_yaxes(type="log", title="光谱辐射力 Ebλ (W/m³)")
 fig.update_layout(height=500, margin=dict(l=0, r=0, b=0, t=40), hovermode="x unified")
 st.plotly_chart(fig, use_container_width=True)
@@ -112,7 +116,7 @@ bands = [
     ("紫外/可见光", 0.1, 0.76),
     ("近/中红外", 0.76, 8.0),
     ("大气窗口(远红外)", 8.0, 14.0),
-    ("极远红外", 14.0, 1000.0) # 这里的极远红外依然计算全部剩余能量，保证饼图100%完整
+    ("极远红外", 14.0, 1000.0) 
 ]
 
 band_data = []
